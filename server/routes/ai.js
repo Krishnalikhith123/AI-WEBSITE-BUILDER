@@ -187,5 +187,51 @@ ${JSON.stringify(contextFiles)}`
   }
 })
 
+// ── Explanation Endpoint ──────────────────────────────────────────────────
+router.post('/explain', auth, async (req, res) => {
+  try {
+    const { files } = req.body
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided for explanation' })
+    }
+
+    let formattedFiles = ''
+    files.forEach(f => {
+      formattedFiles += `\n### File: ${f.path}\n\`\`\`\n${f.content}\n\`\`\`\n`
+    })
+
+    const prompt = `You are a Senior Software Engineer and Architect.
+I am providing you with the source code for a recently generated web application feature.
+Your task is to explain this code theoretically and thoroughly so a student or junior developer can deeply understand it.
+
+Please structure your response in Markdown:
+1. Start with a high-level summary of what the code does.
+2. Then, go through EACH file provided. For each file, explain:
+   - Its overall purpose.
+   - The key functions, variables, and components inside it.
+   - Any important HTML/JSX tags, layout structures, or logic flow.
+3. Be clear, educational, and structured.
+
+Here is the code to explain:
+${formattedFiles}`
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.3,
+      }
+    })
+
+    let explanationText = response.text || "Failed to generate explanation."
+
+    res.json({ explanation: explanationText })
+  } catch (error) {
+    console.error('Explanation Error:', error)
+    res.status(500).json({ error: 'Failed to generate explanation: ' + (error.message || String(error)) })
+  }
+})
+
 export default router
 
